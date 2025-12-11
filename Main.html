@@ -2,238 +2,251 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chromalab - Análise de Colorimetria</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chromalab - Colorimetria AR</title>
   
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
 
   <style>
-    /* Reset básico */
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
-
-    body {
-      overflow: hidden; /* Impede rolagem */
-      height: 100vh;
-      width: 100vw;
-    }
-
-    /* --- CAMADA DE AR (Fica no fundo) --- */
-    #ar-scene-container {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 1; /* Camada mais baixa */
-    }
-
-    /* --- CAMADA DE INTERFACE (Fica na frente) --- */
-    #ui-layer {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 10; /* Fica acima do vídeo */
-      display: grid;
-      /* Define 3 colunas: Lateral Esq (250px) - Centro (Flexível) - Lateral Dir (250px) */
-      grid-template-columns: 280px 1fr 250px;
-      /* Define 2 linhas: Conteúdo principal e Barra Inferior (100px) */
-      grid-template-rows: 1fr 120px;
-      pointer-events: none; /* Deixa o clique passar para o vídeo onde não tem botão */
-    }
-
-    /* --- Estilos das Áreas da UI --- */
+    /* Reset e Estrutura Básica */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
-    /* Barras Laterais */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #f0f0f0; /* Fundo cinza claro caso a cam não abra */
+    }
+
+    /* --- TELA DE INÍCIO (Obrigatória para funcionar no iPhone/Android) --- */
+    #start-screen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: white;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    #btn-start {
+      padding: 15px 40px;
+      font-size: 18px;
+      background: linear-gradient(90deg, #E53935, #1E88E5);
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      margin-top: 20px;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    /* --- LAYOUT DA INTERFACE (Sobreposição) --- */
+    #ui-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 10; /* Fica acima do vídeo */
+      display: none; /* Só aparece depois de clicar em iniciar */
+      grid-template-columns: 250px 1fr 250px; /* Esq - Meio - Dir */
+      grid-template-rows: 60px 1fr 100px; /* Header - Meio - Footer */
+      pointer-events: none; /* Permite clicar "através" da área vazia */
+    }
+
+    /* Header (Chromalab) */
+    header {
+      grid-column: 1 / -1;
+      background: white;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      padding-left: 20px;
+      font-weight: bold;
+      font-size: 20px;
+      pointer-events: auto;
+    }
+
+    /* Laterais (Papel Branco) */
     .sidebar {
-      background-color: white;
-      padding: 20px;
-      border: 1px solid #ccc;
-      pointer-events: auto; /* Reativa cliques nestas áreas */
+      background: rgba(255, 255, 255, 0.95);
+      padding: 15px;
+      border-right: 1px solid #ddd;
+      border-left: 1px solid #ddd;
+      pointer-events: auto;
       display: flex;
       flex-direction: column;
       gap: 15px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      font-size: 14px;
     }
 
-    /* Área Central (Onde fica o rosto) */
-    .viewport-center {
-      /* Fundo transparente para ver a câmera */
-      border: 2px solid rgba(255, 255, 255, 0.5);
-      position: relative;
-    }
-    
-    /* Guia visual de rosto (Opcional) */
-    .face-guide {
-      width: 60%;
-      height: 70%;
-      border: 2px dashed rgba(255,255,255,0.6);
-      border-radius: 50%;
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.5;
-    }
+    .right-bar { border-left: 1px solid #ddd; border-right: none; }
 
-    /* Barra Inferior */
-    .bottom-bar {
-      grid-column: 1 / -1; /* Ocupa toda a largura */
-      background-color: #e0e0e0;
+    /* Caixas de Texto (Estilo Wireframe) */
+    .info-box {
+      border: 1px solid #333;
+      padding: 10px;
+      background: white;
+      margin-bottom: 10px;
+    }
+    .info-box h3 { font-size: 14px; margin-bottom: 5px; color: #E53935; }
+
+    /* Barra Inferior (Controles) */
+    footer {
+      grid-column: 1 / -1;
+      background: #e0e0e0;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 15px;
-      padding: 10px;
+      gap: 10px;
       pointer-events: auto;
       border-top: 1px solid #999;
     }
 
-    /* Botões de Paleta (Quadrados coloridos) */
-    .palette-btn {
-      width: 70px;
-      height: 70px;
-      border: none;
-      color: white;
-      font-weight: bold;
-      font-size: 10px;
+    /* Botões de Paleta */
+    .color-btn {
+      width: 80px; height: 60px;
+      border: none; color: white;
+      font-weight: bold; font-size: 12px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      transition: transform 0.2s;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-
-    .palette-btn:hover { transform: scale(1.1); }
-    .palette-btn:active { transform: scale(0.95); }
-
-    /* Cores dos botões */
-    .btn-warm-light { background-color: #E53935; } /* Quente Claro */
-    .btn-cool-light { background-color: #1E88E5; } /* Frio Claro */
-    .btn-warm-dark  { background-color: #8E0000; } /* Quente Escuro */
-    .btn-cool-dark  { background-color: #0D47A1; } /* Frio Escuro */
     
-    /* Ícone da Câmera */
-    .cam-control {
-      width: 60px; height: 60px;
+    .btn-cam {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: #333; color: white; font-size: 24px;
+      border: none; margin-right: 20px; cursor: pointer;
+    }
+
+    /* Área Central Transparente */
+    .viewport {
+      position: relative;
+    }
+    
+    /* Desenho de guia de rosto (opcional) */
+    .face-outline {
+      width: 200px; height: 260px;
+      border: 2px dashed rgba(255,255,255,0.7);
       border-radius: 50%;
-      background: #333;
-      color: white;
-      border: none;
-      font-size: 24px;
-      margin-right: 20px;
-      cursor: pointer;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
     }
 
-    /* Textos */
-    h2 { font-size: 16px; margin-bottom: 10px; color: #333; }
-    p { font-size: 14px; color: #666; line-height: 1.4; }
-    .nav-btn {
-      padding: 8px 16px;
-      border: 1px solid #333;
-      background: white;
-      cursor: pointer;
-      border-radius: 20px;
-      margin-top: auto;
+    /* Responsividade para Celular (Esconde laterais se for muito pequeno) */
+    @media (max-width: 768px) {
+      #ui-container {
+        grid-template-columns: 1fr; /* Apenas 1 coluna */
+        grid-template-rows: 50px 1fr 150px 100px; /* Header - Vídeo - Instruções - Botões */
+      }
+      .sidebar { display: none; } /* Esconde laterais no mobile para focar no rosto */
+      /* Você pode adaptar para mostrar as instruções embaixo se quiser */
     }
-
   </style>
 </head>
 <body>
 
-  <div id="ui-layer">
+  <div id="start-screen">
+    <h1>Chromalab</h1>
+    <p>Colorimetria em Realidade Aumentada</p>
+    <p style="font-size: 12px; color: #666; margin-top: 10px;">Necessário permitir acesso à câmera</p>
+    <button id="btn-start">INICIAR EXPERIÊNCIA</button>
+  </div>
+
+  <div id="ui-container">
     
+    <header>Chromalab</header>
+
     <aside class="sidebar">
-      <div style="border: 1px solid #333; padding: 10px; height: 100%;">
-        <h2>Primeira Etapa: Temperatura</h2>
+      <div class="info-box">
+        <h3>Primeira Etapa: Temperatura</h3>
         <p>Nela vamos observar se você é uma pessoa mais voltada para cores quentes ou frias.</p>
-        <div style="margin-top: 20px; display: flex; gap: 10px;">
-          <button class="nav-btn">Avançar</button>
-          <button class="nav-btn">Pular</button>
+        <div style="margin-top: 10px; display: flex; gap: 5px;">
+          <button style="padding: 5px 10px;">Avançar</button>
+          <button style="padding: 5px 10px;">Pular</button>
         </div>
       </div>
       
-      <div style="margin-top: 10px;">
-        <p><strong>Etapas do Processo:</strong></p>
-        <label><input type="checkbox" checked> Temperatura</label><br>
-        <label><input type="checkbox"> Profundidade</label><br>
-        <label><input type="checkbox"> Intensidade</label>
+      <div>
+        <strong>Etapas:</strong><br>
+        <input type="checkbox" checked> Temperatura<br>
+        <input type="checkbox"> Profundidade<br>
+        <input type="checkbox"> Intensidade
       </div>
     </aside>
 
-    <main class="viewport-center">
-      <div class="face-guide"></div>
+    <main class="viewport">
+      <div class="face-outline"></div>
     </main>
 
-    <aside class="sidebar">
-      <div style="border: 1px solid #333; padding: 10px; margin-bottom: 10px;">
-        <h2>Resumo</h2>
-        <p>Observe como as olheiras e manchas reagem a cada cor.</p>
+    <aside class="sidebar right-bar">
+      <div class="info-box">
+        <h3>Resumo Instruções</h3>
+        <p>Observe olheiras e manchas ao trocar as cores.</p>
       </div>
-      <div style="border: 1px solid #333; padding: 10px;">
-        <h2>Dicas:</h2>
-        <p>1. Utilize um espelho (ou a tela).</p>
+      <div class="info-box">
+        <h3>Dicas:</h3>
+        <p>1. Utilize iluminação natural.</p>
         <p>2. Prenda o cabelo.</p>
-        <p>3. Opte por iluminação natural.</p>
       </div>
     </aside>
 
-    <footer class="bottom-bar">
-      <button class="cam-control" onclick="switchCamera()">📷</button>
+    <footer>
+      <button class="btn-cam">📷</button>
       
-      <button class="palette-btn btn-warm-light" onclick="setFilter('#color-overlay', 'warm')">Quente<br>Claro</button>
-      <button class="palette-btn btn-cool-light" onclick="setFilter('#color-overlay', 'cool')">Frio<br>Claro</button>
+      <button class="color-btn" style="background:#D32F2F;" onclick="applyFilter('#D32F2F')">Quente<br>Claro</button>
+      <button class="color-btn" style="background:#1976D2;" onclick="applyFilter('#1976D2')">Frio<br>Claro</button>
       
-      <div style="width: 20px;"></div> <button class="palette-btn btn-warm-dark" onclick="setFilter('#color-overlay', 'warm-dark')">Quente<br>Escuro</button>
-      <button class="palette-btn btn-cool-dark" onclick="setFilter('#color-overlay', 'cool-dark')">Frio<br>Escuro</button>
+      <div style="width: 20px;"></div>
+      
+      <button class="color-btn" style="background:#880E4F;" onclick="applyFilter('#880E4F')">Quente<br>Escuro</button>
+      <button class="color-btn" style="background:#0D47A1;" onclick="applyFilter('#0D47A1')">Frio<br>Escuro</button>
     </footer>
-
   </div>
 
-  <div id="ar-scene-container">
-    <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-      
-      <a-assets>
-        <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
-      </a-assets>
+  <a-scene mindar-face="filterMinCF:0.001; filterBeta: 0.01" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" style="position: absolute; top: 0; left: 0; z-index: 1;">
+    
+    <a-assets>
+      <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
+    </a-assets>
 
-      <a-camera active="false" position="0 0 0"></a-camera>
+    <a-camera active="false" position="0 0 0"></a-camera>
 
-      <a-entity mindar-face-target="anchorIndex: 168">
-        
-        <a-entity id="color-overlay" 
-                  geometry="primitive: face; model: #headModel;" 
-                  material="color: #ff0000; opacity: 0.3; transparent: true;" 
-                  visible="false"
-                  position="0 0 0.01"></a-entity> </a-entity>
-    </a-scene>
-  </div>
+    <a-entity mindar-face-target="anchorIndex: 168">
+      <a-entity id="face-mask" 
+                geometry="primitive: face; model: #headModel;" 
+                material="color: #ffffff; opacity: 0; transparent: true;" 
+                position="0 0 0.01"></a-entity>
+    </a-entity>
+
+  </a-scene>
 
   <script>
-    // Lógica simples para trocar a cor da máscara facial
-    const overlay = document.querySelector('#color-overlay');
+    const startBtn = document.getElementById('btn-start');
+    const startScreen = document.getElementById('start-screen');
+    const uiContainer = document.getElementById('ui-container');
+    const scene = document.querySelector('a-scene');
+    const mask = document.querySelector('#face-mask');
 
-    function setFilter(targetId, type) {
-      // Torna visível
-      overlay.setAttribute('visible', 'true');
+    // 1. Evento para iniciar a câmera
+    startBtn.addEventListener('click', async () => {
+      console.log("Iniciando AR...");
+      startScreen.style.display = 'none'; // Some a tela de início
+      uiContainer.style.display = 'grid'; // Mostra a UI
+      
+      // O MindAR inicia automaticamente ao carregar a cena, 
+      // mas precisamos garantir que o AudioContext/Video seja permitido pelo clique
+      scene.play(); 
+    });
 
-      if (type === 'warm') {
-        // Overlay Laranja Suave
-        overlay.setAttribute('material', 'color: #FF8C00; opacity: 0.35; transparent: true');
-      } else if (type === 'cool') {
-        // Overlay Azulado Suave
-        overlay.setAttribute('material', 'color: #4682B4; opacity: 0.35; transparent: true');
-      } else if (type === 'warm-dark') {
-         // Overlay Marrom avermelhado
-         overlay.setAttribute('material', 'color: #800000; opacity: 0.4; transparent: true');
-      } else if (type === 'cool-dark') {
-         // Overlay Azul Marinho
-         overlay.setAttribute('material', 'color: #000080; opacity: 0.4; transparent: true');
-      }
-    }
-
-    // Função placeholder para câmera
-    function switchCamera() {
-      alert("Alternar câmera (função nativa do MindAR pode ser automática em mobile).");
+    // 2. Função para aplicar cor
+    function applyFilter(colorCode) {
+      // Muda a cor e aumenta a opacidade para ficar visível
+      mask.setAttribute('material', `color: ${colorCode}; opacity: 0.35; transparent: true; roughness: 0.5; metalness: 0;`);
+      console.log("Cor aplicada:", colorCode);
     }
   </script>
 
