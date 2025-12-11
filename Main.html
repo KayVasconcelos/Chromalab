@@ -46,33 +46,148 @@
     <button id="start-button">INICIAR CÂMERA</button>
   </div>
 
-  <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-    
+  <a-scene id="aframeScene" mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
     <a-assets>
       <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
     </a-assets>
 
-    <a-camera active="false" position="0 0 0"></a-camera>
+    <a-camera position="0 0 0"></a-camera>
 
-    <a-entity mindar-face-target="anchorIndex: 168">
-      <a-box color="tomato" depth="0.1" height="0.1" width="0.1"></a-box>
+    <!-- Anchor para anexar objetos ao rosto -->
+    <a-entity id="faceAnchor" mindar-face-target="anchorIndex: 0">
+      <!-- guia visual (pequeno plano transparente) para referência durante desenvolvimento -->
+      <a-ring id="guideRing" position="0 0 0.06" rotation="-90 0 0" radius-inner="0.08" radius-outer="0.14" color="#ffffff" opacity="0.12"></a-ring>
+      <!-- local onde as paletas serão criadas dinamicamente -->
+      <a-entity id="palettesAnchor" position="0 -0.12 0.04"></a-entity>
     </a-entity>
-    
   </a-scene>
+
+  <div style="position:fixed;right:18px;top:18px;z-index:9999;display:flex;flex-direction:column;gap:8px">
+    <button id="togglePalettes" style="padding:8px 12px;border-radius:8px">Desligar paletas</button>
+    <label style="background:#fff;padding:8px;border-radius:8px;font-size:13px">Velocidade: <input id="speed" type="range" min="2" max="12" value="6" /></label>
+    <button id="snapshot" style="padding:8px 12px;border-radius:8px">Tirar foto</button>
+  </div>
 
   <script>
     const startButton = document.getElementById('start-button');
     const startScreen = document.getElementById('start-screen');
-    const scene = document.querySelector('a-scene');
+    const sceneEl = document.querySelector('#aframeScene');
+    const palettesAnchor = document.getElementById('palettesAnchor');
+    const togglePalettesBtn = document.getElementById('togglePalettes');
+    const speedInput = document.getElementById('speed');
+    const snapshotBtn = document.getElementById('snapshot');
 
-    startButton.addEventListener('click', () => {
+    let palettesEnabled = true;
+    let spawnInterval = null;
+    let paletteId = 0;
+
+    const samplePalettes = [
+      ['#FCE4EC','#F8BBD0','#F48FB1','#F06292','#EC407A'],
+      ['#FFF3E0','#FFE0B2','#FFCC80','#FFB74D','#FFA726'],
+      ['#E8F5E9','#C8E6C9','#A5D6A7','#81C784','#66BB6A'],
+      ['#E3F2FD','#BBDEFB','#90CAF9','#64B5F6','#42A5F5'],
+      ['#F3E5F5','#E1BEE7','#CE93D8','#BA68C8','#AB47BC']
+    ];
+
+    function startPalettes(){
+      stopPalettes();
+      if(!palettesEnabled) return;
+      const interval = 1200;
+      spawnInterval = setInterval(()=>spawnPalette(), interval);
+      spawnPalette();
+    }
+
+    function stopPalettes(){ if(spawnInterval){ clearInterval(spawnInterval); spawnInterval=null } }
+
+    function spawnPalette(){
+      if(!palettesEnabled) return;
+      const colors = samplePalettes[Math.floor(Math.random()*samplePalettes.length)];
+      const group = document.createElement('a-entity');
+      const id = 'pal-'+(paletteId++);
+      group.setAttribute('id', id);
+      // start to the right of the face anchor
+      group.setAttribute('position', '0.6 0 0');
+
+      // create swatches as planes
+      const gap = 0.045;
+      const totalWidth = colors.length * 0.09 + (colors.length-1)*gap;
+      let x = -totalWidth/2 + 0.045;
+      colors.forEach(c => {
+        const p = document.createElement('a-plane');
+        p.setAttribute('width', '0.09');
+        p.setAttribute('height', '0.18');
+        p.setAttribute('position', `${x} 0 0`);
+        p.setAttribute('material', `color: ${c}; metalness:0.0; roughness:0.6`);
+        p.setAttribute('rotation', '-90 0 0');
+        group.appendChild(p);
+        x += 0.09 + gap;
+      });
+
+      palettesAnchor.appendChild(group);
+
+      // animate group from x=+0.6 to x=-0.6 relative to anchor
+      const dur = Math.max(2000, (13 - parseInt(speedInput.value,10)) * 300);
+      group.setAttribute('animation__move', `property: position; to: -0.6 0 0; dur: ${dur}; easing: linear`);
+
+      // remove after animation
+      setTimeout(()=>{ if(group.parentNode) group.parentNode.removeChild(group); }, dur + 300);
+    }
+
+    togglePalettesBtn.addEventListener('click', ()=>{
+      palettesEnabled = !palettesEnabled;
+      togglePalettesBtn.textContent = palettesEnabled ? 'Desligar paletas' : 'Ligar paletas';
+      if(palettesEnabled) startPalettes(); else stopPalettes();
+    });
+
+    speedInput.addEventListener('input', ()=>{
+      // restart to apply new speed
+      if(palettesEnabled) startPalettes();
+    });
+
+    snapshotBtn.addEventListener('click', ()=>{
+      // capture canvas of A-Frame renderer
+      try{
+        const canvas = sceneEl.renderer.domElement;
+        const data = canvas.toDataURL('image/png');
+        const w = window.open('about:blank','snapshot');
+        const img = w.document.createElement('img'); img.src = data; w.document.body.style.margin='0'; w.document.body.appendChild(img);
+      }catch(e){ console.warn('não foi possível capturar', e); }
+    });
+
+    startButton.addEventListener('click', async () => {
       // Oculta a tela inicial
       startScreen.style.display = 'none';
-      
-      // Inicia a experiência (necessário em alguns browsers mobile)
-      // O A-Frame/MindAR gerencia a câmera automaticamente ao carregar,
-      // mas o clique ajuda a garantir que o áudio/vídeo seja permitido pelo navegador.
+      setTimeout(()=>{
+        try{
+          // Tenta iniciar o sistema MindAR (pode variar por versão)
+          const sys = sceneEl.systems['mindar-face-system'] || sceneEl.components['mindar-face-system'];
+          if(sys && sys.start){
+            sys.start();
+          }
+        }catch(err){ console.warn('erro ao iniciar MindAR', err); }
+      }, 50);
+
+      // inicia as paletas
+      palettesEnabled = true; startPalettes();
     });
+
+    // pare/continue paletas se a cena perder foco
+    window.addEventListener('visibilitychange', ()=>{
+      if(document.hidden) stopPalettes(); else if(palettesEnabled) startPalettes();
+    });
+
+    // tente iniciar automaticamente se permissão já concedida
+    (async ()=>{
+      try{
+        const perms = await navigator.permissions.query({name:'camera'}).catch(()=>null);
+        if(perms && perms.state==='granted'){
+          startScreen.style.display='none';
+          const sys = sceneEl.systems['mindar-face-system'] || sceneEl.components['mindar-face-system'];
+          if(sys && sys.start) sys.start();
+          palettesEnabled = true; startPalettes();
+        }
+      }catch(e){}
+    })();
   </script>
 </body>
 </html>
