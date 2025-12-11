@@ -113,6 +113,14 @@ with col_camera:
     # Botão para capturar foto
     st.markdown("---")
     capture_photo = st.button("📸 Capturar Foto", key="capture_btn", use_container_width=True)
+    
+    # Inicializar session state para feedback
+    if "photo_captured" not in st.session_state:
+        st.session_state.photo_captured = False
+    
+    # Mostrar feedback quando foto for capturada
+    if st.session_state.photo_captured:
+        st.success("✅ Captura feita! Vá para a seção de **Análise Personalizada com IA** para mais detalhes")
 
 with col_info:
     st.subheader("Paleta Atual")
@@ -193,7 +201,7 @@ if capture_photo and ctx.video_processor:
             # Converter de BGR para RGB
             frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
             st.session_state.captured_photo = Image.fromarray(frame_rgb)
-            st.success("✅ Foto capturada! Clique em 'Analisar com Gemini' para análise.")
+            st.session_state.photo_captured = True
             st.rerun()
         else:
             st.warning("⚠️ Câmera ainda carregando, tente novamente em alguns segundos...")
