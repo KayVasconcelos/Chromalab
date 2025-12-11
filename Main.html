@@ -68,6 +68,15 @@
     <button id="snapshot" style="padding:8px 12px;border-radius:8px">Tirar foto</button>
   </div>
 
+  <!-- Overlay de debug (visível em produção para capturar erros) -->
+  <div id="debugOverlay" style="position:fixed;left:12px;bottom:12px;right:12px;max-height:36vh;overflow:auto;background:rgba(0,0,0,0.72);color:#fff;padding:10px;border-radius:8px;font-size:13px;z-index:10000;backdrop-filter:blur(4px)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong>Debug: Chromalab</strong>
+      <button id="debugClose" style="background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Fechar</button>
+    </div>
+    <div id="debugMessages" style="white-space:pre-wrap"></div>
+  </div>
+
   <script>
     const startButton = document.getElementById('start-button');
     const startScreen = document.getElementById('start-screen');
@@ -188,6 +197,36 @@
         }
       }catch(e){}
     })();
+
+    // debug overlay helpers
+    const debugOverlay = document.getElementById('debugOverlay');
+    const debugMessages = document.getElementById('debugMessages');
+    const debugClose = document.getElementById('debugClose');
+
+    function debugLog(...args){
+      const txt = args.map(a=>{
+        try{ return typeof a === 'string' ? a : JSON.stringify(a);}catch(e){ return String(a);}      
+      }).join(' ');
+      const time = new Date().toLocaleTimeString();
+      debugMessages.textContent += `[${time}] ${txt}\n`;
+      debugMessages.scrollTop = debugMessages.scrollHeight;
+      console.log(...args);
+    }
+
+    window.addEventListener('error', (ev)=>{
+      debugLog('ERROR:', ev.message, 'at', ev.filename+':'+ev.lineno+':'+ev.colno);
+    });
+
+    window.addEventListener('unhandledrejection', (ev)=>{
+      debugLog('UNHANDLED PROMISE REJECTION:', ev.reason && (ev.reason.message || ev.reason));
+    });
+
+    // small checks for frameworks
+    debugLog('Main.html carregado');
+    debugLog('A-Frame:', typeof AFRAME !== 'undefined' ? 'OK' : 'MISSING');
+    debugLog('MindAR:', typeof window.MINDAR !== 'undefined' || (sceneEl && (sceneEl.systems && sceneEl.systems['mindar-face-system']) ) ? 'OK (provável)' : 'MISSING');
+
+    debugClose.addEventListener('click', ()=>{ debugOverlay.style.display='none' });
   </script>
 </body>
 </html>
