@@ -1,232 +1,241 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Minha WebAR no GitHub Pages</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chromalab - Análise de Colorimetria</title>
   
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-    
-    /* Estilo da Tela Inicial (Overlay) */
-    #start-screen {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999; /* Fica acima da câmera */
-      color: white;
-      text-align: center;
+    /* Reset básico */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+
+    body {
+      overflow: hidden; /* Impede rolagem */
+      height: 100vh;
+      width: 100vw;
     }
 
-    #start-button {
-      padding: 15px 30px;
-      font-size: 18px;
-      background-color: #fff;
-      color: #764ba2;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      margin-top: 20px;
-      font-weight: bold;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* --- CAMADA DE AR (Fica no fundo) --- */
+    #ar-scene-container {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1; /* Camada mais baixa */
     }
+
+    /* --- CAMADA DE INTERFACE (Fica na frente) --- */
+    #ui-layer {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10; /* Fica acima do vídeo */
+      display: grid;
+      /* Define 3 colunas: Lateral Esq (250px) - Centro (Flexível) - Lateral Dir (250px) */
+      grid-template-columns: 280px 1fr 250px;
+      /* Define 2 linhas: Conteúdo principal e Barra Inferior (100px) */
+      grid-template-rows: 1fr 120px;
+      pointer-events: none; /* Deixa o clique passar para o vídeo onde não tem botão */
+    }
+
+    /* --- Estilos das Áreas da UI --- */
+    
+    /* Barras Laterais */
+    .sidebar {
+      background-color: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      pointer-events: auto; /* Reativa cliques nestas áreas */
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    /* Área Central (Onde fica o rosto) */
+    .viewport-center {
+      /* Fundo transparente para ver a câmera */
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      position: relative;
+    }
+    
+    /* Guia visual de rosto (Opcional) */
+    .face-guide {
+      width: 60%;
+      height: 70%;
+      border: 2px dashed rgba(255,255,255,0.6);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.5;
+    }
+
+    /* Barra Inferior */
+    .bottom-bar {
+      grid-column: 1 / -1; /* Ocupa toda a largura */
+      background-color: #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      padding: 10px;
+      pointer-events: auto;
+      border-top: 1px solid #999;
+    }
+
+    /* Botões de Paleta (Quadrados coloridos) */
+    .palette-btn {
+      width: 70px;
+      height: 70px;
+      border: none;
+      color: white;
+      font-weight: bold;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: transform 0.2s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .palette-btn:hover { transform: scale(1.1); }
+    .palette-btn:active { transform: scale(0.95); }
+
+    /* Cores dos botões */
+    .btn-warm-light { background-color: #E53935; } /* Quente Claro */
+    .btn-cool-light { background-color: #1E88E5; } /* Frio Claro */
+    .btn-warm-dark  { background-color: #8E0000; } /* Quente Escuro */
+    .btn-cool-dark  { background-color: #0D47A1; } /* Frio Escuro */
+    
+    /* Ícone da Câmera */
+    .cam-control {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: #333;
+      color: white;
+      border: none;
+      font-size: 24px;
+      margin-right: 20px;
+      cursor: pointer;
+    }
+
+    /* Textos */
+    h2 { font-size: 16px; margin-bottom: 10px; color: #333; }
+    p { font-size: 14px; color: #666; line-height: 1.4; }
+    .nav-btn {
+      padding: 8px 16px;
+      border: 1px solid #333;
+      background: white;
+      cursor: pointer;
+      border-radius: 20px;
+      margin-top: auto;
+    }
+
   </style>
 </head>
 <body>
 
-  <div id="start-screen">
-    <h1>Experiência AR</h1>
-    <p>Permita o uso da câmera para começar</p>
-    <button id="start-button">INICIAR CÂMERA</button>
+  <div id="ui-layer">
+    
+    <aside class="sidebar">
+      <div style="border: 1px solid #333; padding: 10px; height: 100%;">
+        <h2>Primeira Etapa: Temperatura</h2>
+        <p>Nela vamos observar se você é uma pessoa mais voltada para cores quentes ou frias.</p>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+          <button class="nav-btn">Avançar</button>
+          <button class="nav-btn">Pular</button>
+        </div>
+      </div>
+      
+      <div style="margin-top: 10px;">
+        <p><strong>Etapas do Processo:</strong></p>
+        <label><input type="checkbox" checked> Temperatura</label><br>
+        <label><input type="checkbox"> Profundidade</label><br>
+        <label><input type="checkbox"> Intensidade</label>
+      </div>
+    </aside>
+
+    <main class="viewport-center">
+      <div class="face-guide"></div>
+    </main>
+
+    <aside class="sidebar">
+      <div style="border: 1px solid #333; padding: 10px; margin-bottom: 10px;">
+        <h2>Resumo</h2>
+        <p>Observe como as olheiras e manchas reagem a cada cor.</p>
+      </div>
+      <div style="border: 1px solid #333; padding: 10px;">
+        <h2>Dicas:</h2>
+        <p>1. Utilize um espelho (ou a tela).</p>
+        <p>2. Prenda o cabelo.</p>
+        <p>3. Opte por iluminação natural.</p>
+      </div>
+    </aside>
+
+    <footer class="bottom-bar">
+      <button class="cam-control" onclick="switchCamera()">📷</button>
+      
+      <button class="palette-btn btn-warm-light" onclick="setFilter('#color-overlay', 'warm')">Quente<br>Claro</button>
+      <button class="palette-btn btn-cool-light" onclick="setFilter('#color-overlay', 'cool')">Frio<br>Claro</button>
+      
+      <div style="width: 20px;"></div> <button class="palette-btn btn-warm-dark" onclick="setFilter('#color-overlay', 'warm-dark')">Quente<br>Escuro</button>
+      <button class="palette-btn btn-cool-dark" onclick="setFilter('#color-overlay', 'cool-dark')">Frio<br>Escuro</button>
+    </footer>
+
   </div>
 
-  <a-scene id="aframeScene" mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-    <a-assets>
-      <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
-    </a-assets>
+  <div id="ar-scene-container">
+    <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+        <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
+      </a-assets>
 
-    <a-camera position="0 0 0"></a-camera>
+      <a-camera active="false" position="0 0 0"></a-camera>
 
-    <!-- Anchor para anexar objetos ao rosto -->
-    <a-entity id="faceAnchor" mindar-face-target="anchorIndex: 0">
-      <!-- guia visual (pequeno plano transparente) para referência durante desenvolvimento -->
-      <a-ring id="guideRing" position="0 0 0.06" rotation="-90 0 0" radius-inner="0.08" radius-outer="0.14" color="#ffffff" opacity="0.12"></a-ring>
-      <!-- local onde as paletas serão criadas dinamicamente -->
-      <a-entity id="palettesAnchor" position="0 -0.12 0.04"></a-entity>
-    </a-entity>
-  </a-scene>
-
-  <div style="position:fixed;right:18px;top:18px;z-index:9999;display:flex;flex-direction:column;gap:8px">
-    <button id="togglePalettes" style="padding:8px 12px;border-radius:8px">Desligar paletas</button>
-    <label style="background:#fff;padding:8px;border-radius:8px;font-size:13px">Velocidade: <input id="speed" type="range" min="2" max="12" value="6" /></label>
-    <button id="snapshot" style="padding:8px 12px;border-radius:8px">Tirar foto</button>
-  </div>
-
-  <!-- Overlay de debug (visível em produção para capturar erros) -->
-  <div id="debugOverlay" style="position:fixed;left:12px;bottom:12px;right:12px;max-height:36vh;overflow:auto;background:rgba(0,0,0,0.72);color:#fff;padding:10px;border-radius:8px;font-size:13px;z-index:10000;backdrop-filter:blur(4px)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <strong>Debug: Chromalab</strong>
-      <button id="debugClose" style="background:transparent;border:1px solid rgba(255,255,255,0.12);color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer">Fechar</button>
-    </div>
-    <div id="debugMessages" style="white-space:pre-wrap"></div>
+      <a-entity mindar-face-target="anchorIndex: 168">
+        
+        <a-entity id="color-overlay" 
+                  geometry="primitive: face; model: #headModel;" 
+                  material="color: #ff0000; opacity: 0.3; transparent: true;" 
+                  visible="false"
+                  position="0 0 0.01"></a-entity> </a-entity>
+    </a-scene>
   </div>
 
   <script>
-    const startButton = document.getElementById('start-button');
-    const startScreen = document.getElementById('start-screen');
-    const sceneEl = document.querySelector('#aframeScene');
-    const palettesAnchor = document.getElementById('palettesAnchor');
-    const togglePalettesBtn = document.getElementById('togglePalettes');
-    const speedInput = document.getElementById('speed');
-    const snapshotBtn = document.getElementById('snapshot');
+    // Lógica simples para trocar a cor da máscara facial
+    const overlay = document.querySelector('#color-overlay');
 
-    let palettesEnabled = true;
-    let spawnInterval = null;
-    let paletteId = 0;
+    function setFilter(targetId, type) {
+      // Torna visível
+      overlay.setAttribute('visible', 'true');
 
-    const samplePalettes = [
-      ['#FCE4EC','#F8BBD0','#F48FB1','#F06292','#EC407A'],
-      ['#FFF3E0','#FFE0B2','#FFCC80','#FFB74D','#FFA726'],
-      ['#E8F5E9','#C8E6C9','#A5D6A7','#81C784','#66BB6A'],
-      ['#E3F2FD','#BBDEFB','#90CAF9','#64B5F6','#42A5F5'],
-      ['#F3E5F5','#E1BEE7','#CE93D8','#BA68C8','#AB47BC']
-    ];
-
-    function startPalettes(){
-      stopPalettes();
-      if(!palettesEnabled) return;
-      const interval = 1200;
-      spawnInterval = setInterval(()=>spawnPalette(), interval);
-      spawnPalette();
+      if (type === 'warm') {
+        // Overlay Laranja Suave
+        overlay.setAttribute('material', 'color: #FF8C00; opacity: 0.35; transparent: true');
+      } else if (type === 'cool') {
+        // Overlay Azulado Suave
+        overlay.setAttribute('material', 'color: #4682B4; opacity: 0.35; transparent: true');
+      } else if (type === 'warm-dark') {
+         // Overlay Marrom avermelhado
+         overlay.setAttribute('material', 'color: #800000; opacity: 0.4; transparent: true');
+      } else if (type === 'cool-dark') {
+         // Overlay Azul Marinho
+         overlay.setAttribute('material', 'color: #000080; opacity: 0.4; transparent: true');
+      }
     }
 
-    function stopPalettes(){ if(spawnInterval){ clearInterval(spawnInterval); spawnInterval=null } }
-
-    function spawnPalette(){
-      if(!palettesEnabled) return;
-      const colors = samplePalettes[Math.floor(Math.random()*samplePalettes.length)];
-      const group = document.createElement('a-entity');
-      const id = 'pal-'+(paletteId++);
-      group.setAttribute('id', id);
-      // start to the right of the face anchor
-      group.setAttribute('position', '0.6 0 0');
-
-      // create swatches as planes
-      const gap = 0.045;
-      const totalWidth = colors.length * 0.09 + (colors.length-1)*gap;
-      let x = -totalWidth/2 + 0.045;
-      colors.forEach(c => {
-        const p = document.createElement('a-plane');
-        p.setAttribute('width', '0.09');
-        p.setAttribute('height', '0.18');
-        p.setAttribute('position', `${x} 0 0`);
-        p.setAttribute('material', `color: ${c}; metalness:0.0; roughness:0.6`);
-        p.setAttribute('rotation', '-90 0 0');
-        group.appendChild(p);
-        x += 0.09 + gap;
-      });
-
-      palettesAnchor.appendChild(group);
-
-      // animate group from x=+0.6 to x=-0.6 relative to anchor
-      const dur = Math.max(2000, (13 - parseInt(speedInput.value,10)) * 300);
-      group.setAttribute('animation__move', `property: position; to: -0.6 0 0; dur: ${dur}; easing: linear`);
-
-      // remove after animation
-      setTimeout(()=>{ if(group.parentNode) group.parentNode.removeChild(group); }, dur + 300);
+    // Função placeholder para câmera
+    function switchCamera() {
+      alert("Alternar câmera (função nativa do MindAR pode ser automática em mobile).");
     }
-
-    togglePalettesBtn.addEventListener('click', ()=>{
-      palettesEnabled = !palettesEnabled;
-      togglePalettesBtn.textContent = palettesEnabled ? 'Desligar paletas' : 'Ligar paletas';
-      if(palettesEnabled) startPalettes(); else stopPalettes();
-    });
-
-    speedInput.addEventListener('input', ()=>{
-      // restart to apply new speed
-      if(palettesEnabled) startPalettes();
-    });
-
-    snapshotBtn.addEventListener('click', ()=>{
-      // capture canvas of A-Frame renderer
-      try{
-        const canvas = sceneEl.renderer.domElement;
-        const data = canvas.toDataURL('image/png');
-        const w = window.open('about:blank','snapshot');
-        const img = w.document.createElement('img'); img.src = data; w.document.body.style.margin='0'; w.document.body.appendChild(img);
-      }catch(e){ console.warn('não foi possível capturar', e); }
-    });
-
-    startButton.addEventListener('click', async () => {
-      // Oculta a tela inicial
-      startScreen.style.display = 'none';
-      setTimeout(()=>{
-        try{
-          // Tenta iniciar o sistema MindAR (pode variar por versão)
-          const sys = sceneEl.systems['mindar-face-system'] || sceneEl.components['mindar-face-system'];
-          if(sys && sys.start){
-            sys.start();
-          }
-        }catch(err){ console.warn('erro ao iniciar MindAR', err); }
-      }, 50);
-
-      // inicia as paletas
-      palettesEnabled = true; startPalettes();
-    });
-
-    // pare/continue paletas se a cena perder foco
-    window.addEventListener('visibilitychange', ()=>{
-      if(document.hidden) stopPalettes(); else if(palettesEnabled) startPalettes();
-    });
-
-    // tente iniciar automaticamente se permissão já concedida
-    (async ()=>{
-      try{
-        const perms = await navigator.permissions.query({name:'camera'}).catch(()=>null);
-        if(perms && perms.state==='granted'){
-          startScreen.style.display='none';
-          const sys = sceneEl.systems['mindar-face-system'] || sceneEl.components['mindar-face-system'];
-          if(sys && sys.start) sys.start();
-          palettesEnabled = true; startPalettes();
-        }
-      }catch(e){}
-    })();
-
-    // debug overlay helpers
-    const debugOverlay = document.getElementById('debugOverlay');
-    const debugMessages = document.getElementById('debugMessages');
-    const debugClose = document.getElementById('debugClose');
-
-    function debugLog(...args){
-      const txt = args.map(a=>{
-        try{ return typeof a === 'string' ? a : JSON.stringify(a);}catch(e){ return String(a);}      
-      }).join(' ');
-      const time = new Date().toLocaleTimeString();
-      debugMessages.textContent += `[${time}] ${txt}\n`;
-      debugMessages.scrollTop = debugMessages.scrollHeight;
-      console.log(...args);
-    }
-
-    window.addEventListener('error', (ev)=>{
-      debugLog('ERROR:', ev.message, 'at', ev.filename+':'+ev.lineno+':'+ev.colno);
-    });
-
-    window.addEventListener('unhandledrejection', (ev)=>{
-      debugLog('UNHANDLED PROMISE REJECTION:', ev.reason && (ev.reason.message || ev.reason));
-    });
-
-    // small checks for frameworks
-    debugLog('Main.html carregado');
-    debugLog('A-Frame:', typeof AFRAME !== 'undefined' ? 'OK' : 'MISSING');
-    debugLog('MindAR:', typeof window.MINDAR !== 'undefined' || (sceneEl && (sceneEl.systems && sceneEl.systems['mindar-face-system']) ) ? 'OK (provável)' : 'MISSING');
-
-    debugClose.addEventListener('click', ()=>{ debugOverlay.style.display='none' });
   </script>
+
 </body>
 </html>
